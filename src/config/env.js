@@ -18,6 +18,27 @@ const env = {
     database: process.env.DB_NAME,
     connectionLimit: Number(process.env.DB_CONNECTION_LIMIT) || 10,
   },
+  auth: {
+    jwtSecret: process.env.JWT_SECRET,
+    tokenTtlSeconds: 8 * 60 * 60, // 8 hours
+    // Enable in production (HTTPS). Local http development needs false.
+    cookieSecure: process.env.COOKIE_SECURE === 'true',
+  },
 };
+
+const MIN_JWT_SECRET_LENGTH = 32;
+
+// Returns an error message if auth settings are invalid, otherwise null.
+// Never includes the secret value itself.
+export function validateAuthConfig() {
+  const secret = env.auth.jwtSecret;
+  if (!secret) {
+    return 'JWT_SECRET이 설정되지 않았습니다. .env에 JWT_SECRET을 추가하세요.';
+  }
+  if (secret.trim() !== secret || secret.length < MIN_JWT_SECRET_LENGTH) {
+    return `JWT_SECRET이 유효하지 않습니다. 앞뒤 공백 없이 ${MIN_JWT_SECRET_LENGTH}자 이상이어야 합니다.`;
+  }
+  return null;
+}
 
 export default env;

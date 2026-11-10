@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import env from './config/env.js';
-import { checkConnection } from './config/db.js';
+import healthRoutes from './routes/healthRoutes.js';
 
 const app = express();
 
@@ -9,18 +9,7 @@ app.use(cors({ origin: env.corsOrigin }));
 app.use(express.json());
 
 // Health checks (server / database)
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
-
-app.get('/health/db', async (req, res) => {
-  try {
-    await checkConnection();
-    res.json({ status: 'ok', database: 'connected' });
-  } catch (err) {
-    res.status(503).json({ status: 'error', database: 'disconnected', message: err.message });
-  }
-});
+app.use('/health', healthRoutes);
 
 // 404
 app.use((req, res) => {

@@ -1,6 +1,6 @@
 import app from './app.js';
 import env from './config/env.js';
-import pool, { checkConnection } from './config/db.js';
+import pool, { checkConnection, describeDbError } from './config/db.js';
 
 const server = app.listen(env.port, async () => {
   console.log(`[server] Listening on http://localhost:${env.port}`);
@@ -9,7 +9,9 @@ const server = app.listen(env.port, async () => {
     await checkConnection();
     console.log(`[db] Connected to MySQL (${env.db.host}:${env.db.port}/${env.db.database})`);
   } catch (err) {
-    console.error(`[db] Connection failed: ${err.code || ''} ${err.message}`);
+    const { code, hint, detail } = describeDbError(err);
+    console.error(`[db] Connection failed (${code}): ${hint}`);
+    console.error(`[db] Detail: ${detail}`);
   }
 });
 

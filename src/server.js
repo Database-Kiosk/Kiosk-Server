@@ -1,6 +1,13 @@
 import app from './app.js';
-import env from './config/env.js';
+import env, { validateAuthConfig } from './config/env.js';
 import pool, { checkConnection, describeDbError } from './config/db.js';
+
+const authConfigError = validateAuthConfig();
+if (authConfigError) {
+  console.error(`[auth] ${authConfigError}`);
+  console.error('[auth] Server not started.');
+  process.exit(1);
+}
 
 const server = app.listen(env.port, async () => {
   console.log(`[server] Listening on http://localhost:${env.port}`);

@@ -5,6 +5,7 @@ import env from './config/env.js';
 import verifyOrigin from './middlewares/verifyOrigin.js';
 import healthRoutes from './routes/healthRoutes.js';
 import adminAuthRoutes from './routes/adminAuthRoutes.js';
+import tableRoutes from './routes/tableRoutes.js';
 
 const app = express();
 
@@ -18,6 +19,8 @@ app.use('/health', healthRoutes);
 // API
 app.use('/api', verifyOrigin);
 app.use('/api/admin', adminAuthRoutes);
+app.use('/api/tables', tableRoutes);
+
 
 // 404
 app.use((req, res) => {

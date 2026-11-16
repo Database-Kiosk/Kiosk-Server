@@ -8,6 +8,7 @@ import adminAuthRoutes from './routes/adminAuthRoutes.js';
 import tableRoutes from './routes/tableRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import menuRoutes from './routes/menuRoutes.js';
+import menuOptionRoutes from './routes/menuOptionRoutes.js';
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use('/api/admin', adminAuthRoutes);
 app.use('/api/tables', tableRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/menus', menuRoutes);
+app.use('/api/menus', menuOptionRoutes);
 
 
 // 404

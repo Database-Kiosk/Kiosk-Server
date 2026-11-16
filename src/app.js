@@ -6,6 +6,8 @@ import verifyOrigin from './middlewares/verifyOrigin.js';
 import healthRoutes from './routes/healthRoutes.js';
 import adminAuthRoutes from './routes/adminAuthRoutes.js';
 import tableRoutes from './routes/tableRoutes.js';
+import categoryRoutes from './routes/categoryRoutes.js';
+import menuRoutes from './routes/menuRoutes.js';
 
 const app = express();
 
@@ -20,6 +22,8 @@ app.use('/health', healthRoutes);
 app.use('/api', verifyOrigin);
 app.use('/api/admin', adminAuthRoutes);
 app.use('/api/tables', tableRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/menus', menuRoutes);
 
 
 // 404

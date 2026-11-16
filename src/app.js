@@ -9,6 +9,7 @@ import tableRoutes from './routes/tableRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import menuRoutes from './routes/menuRoutes.js';
 import menuOptionRoutes from './routes/menuOptionRoutes.js';
+import orderRoutes from './routes/orderRoutes.js';
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use('/api/tables', tableRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/menus', menuRoutes);
 app.use('/api/menus', menuOptionRoutes);
+app.use('/api/orders', orderRoutes);
 
 
 // 404

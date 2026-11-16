@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { getOrOpenSession } from './tableSessionService.js';
 
 // Largest value an INT column (orders.total_price etc.) can hold.
 const MAX_INT_COLUMN = 2147483647;
@@ -12,38 +13,6 @@ function httpError(status, message) {
 
 // "?, ?, ?" for an IN (...) list, so the values stay bound parameters.
 const placeholders = (values) => values.map(() => '?').join(', ');
-
-// Returns the open session of the table, creating one if needed, and marks the table '이용 중'.
-// The caller must hold the dining_table row lock (SELECT ... FOR UPDATE), so two orders for the
-// same table cannot both create a session. Under READ COMMITTED (see createOrder) this locking read
-// takes no gap locks, so first orders on different tables do not deadlock on the INSERT.
-async function getOrOpenSession(connection, table) {
-  const [sessions] = await connection.execute(
-    `SELECT session_id
-     FROM table_session
-     WHERE table_id = ? AND ended_at IS NULL
-     ORDER BY session_id DESC
-     LIMIT 1
-     FOR UPDATE`,
-    [table.table_id],
-  );
-
-  let sessionId = sessions[0]?.session_id;
-  if (!sessionId) {
-    const [result] = await connection.execute('INSERT INTO table_session (table_id) VALUES (?)', [
-      table.table_id,
-    ]);
-    sessionId = result.insertId;
-  }
-
-  if (table.table_status !== '이용 중') {
-    await connection.execute("UPDATE dining_table SET table_status = '이용 중' WHERE table_id = ?", [
-      table.table_id,
-    ]);
-  }
-
-  return sessionId;
-}
 
 // Loads the ordered menus and options, checks them, and computes prices from the DB only.
 // FOR SHARE: the rows cannot be changed by another transaction until this order commits,

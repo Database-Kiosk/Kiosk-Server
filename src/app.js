@@ -10,6 +10,8 @@ import categoryRoutes from './routes/categoryRoutes.js';
 import menuRoutes from './routes/menuRoutes.js';
 import menuOptionRoutes from './routes/menuOptionRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
+import adminOrderRoutes from './routes/adminOrderRoutes.js';
+import adminTableRoutes from './routes/adminTableRoutes.js';
 
 const app = express();
 
@@ -23,6 +25,8 @@ app.use('/health', healthRoutes);
 // API
 app.use('/api', verifyOrigin);
 app.use('/api/admin', adminAuthRoutes);
+app.use('/api/admin/orders', adminOrderRoutes);
+app.use('/api/admin/tables', adminTableRoutes);
 app.use('/api/tables', tableRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/menus', menuRoutes);

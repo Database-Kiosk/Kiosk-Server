@@ -1,16 +1,18 @@
 import { Router } from 'express';
 import requireAdmin from '../middlewares/requireAdmin.js';
-import { getAdminTables } from '../controllers/adminTableController.js';
+import {
+  getAdminTables,
+  completeAdminTable,
+} from '../controllers/adminTableController.js';
 import { getTableOrders } from '../controllers/orderController.js';
 
 const router = Router();
 
-// Every route in this router is admin only.
+// 아래의 모든 API에 관리자 인증 적용
 router.use(requireAdmin);
 
 router.get('/', getAdminTables);
-// Same handler as the customer API GET /api/tables/:tableId/orders (same validation, 404, response),
-// only behind admin authentication.
 router.get('/:tableId/orders', getTableOrders);
+router.patch('/:tableId/complete', completeAdminTable);
 
 export default router;

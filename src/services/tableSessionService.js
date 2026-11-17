@@ -64,3 +64,121 @@ export async function findOpenSession(tableId) {
 
   return sessions[0] ?? null;
 }
+
+function httpError(status, message) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
+/**
+ * 활성 세션을 종료하고 테이블을 이용 가능 상태로 변경한다.
+ */
+export async function completeTableSession(tableId) {
+  const connection = await pool.getConnection();
+
+  try {
+    // 기존 주문 생성 서비스와 같은 격리 수준을 사용한다.
+    await connection.query(
+      'SET TRANSACTION ISOLATION LEVEL READ COMMITTED',
+    );
+    await connection.beginTransaction();
+
+    // 1. 테이블 확인 및 잠금
+    const [tables] = await connection.execute(
+      `SELECT table_id, table_status
+       FROM dining_table
+       WHERE table_id = ?
+       FOR UPDATE`,
+      [tableId],
+    );
+
+    if (tables.length === 0) {
+      throw httpError(404, '존재하지 않는 테이블입니다.');
+    }
+
+    // 2. 활성 세션 확인
+    const [sessions] = await connection.execute(
+      `SELECT session_id
+       FROM table_session
+       WHERE table_id = ? AND ended_at IS NULL
+       ORDER BY session_id DESC
+       FOR UPDATE`,
+      [tableId],
+    );
+
+    if (sessions.length === 0) {
+      throw httpError(409, '현재 이용 중인 세션이 없습니다.');
+    }
+
+    // 정상적으로는 테이블당 활성 세션이 하나여야 한다.
+    if (sessions.length > 1) {
+      throw httpError(
+        409,
+        '활성 세션이 여러 개여서 이용을 종료할 수 없습니다.',
+      );
+    }
+
+    if (tables[0].table_status !== '이용 중') {
+      throw httpError(
+        409,
+        '테이블 상태와 활성 세션 정보가 일치하지 않습니다.',
+      );
+    }
+
+    const sessionId = sessions[0].session_id;
+
+    // 3. 현재 세션에 미완료 주문이 있는지 확인
+    const [pendingOrders] = await connection.execute(
+      `SELECT order_id
+       FROM orders
+       WHERE session_id = ?
+         AND order_status <> '전달 완료'
+       LIMIT 1
+       FOR UPDATE`,
+      [sessionId],
+    );
+
+    if (pendingOrders.length > 0) {
+      throw httpError(
+        409,
+        '처리 중인 주문이 있어 테이블 이용을 종료할 수 없습니다.',
+      );
+    }
+
+    // 4. 세션 종료 시간 기록
+    await connection.execute(
+      `UPDATE table_session
+       SET ended_at = NOW()
+       WHERE session_id = ? AND ended_at IS NULL`,
+      [sessionId],
+    );
+
+    // 5. 테이블 상태 변경
+    await connection.execute(
+      `UPDATE dining_table
+       SET table_status = '이용 가능'
+       WHERE table_id = ?`,
+      [tableId],
+    );
+
+    // 두 변경이 모두 성공한 경우에만 반영한다.
+    await connection.commit();
+
+    return {
+      table_id: tableId,
+      table_status: '이용 가능',
+      session: null,
+    };
+  } catch (error) {
+    try {
+      await connection.rollback();
+    } catch {
+      // rollback 실패로 원래 오류가 덮이지 않도록 한다.
+    }
+
+    throw error;
+  } finally {
+    connection.release();
+  }
+}

@@ -12,6 +12,8 @@ import menuOptionRoutes from './routes/menuOptionRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import adminOrderRoutes from './routes/adminOrderRoutes.js';
 import adminTableRoutes from './routes/adminTableRoutes.js';
+import adminMenuRoutes from './routes/adminMenuRoutes.js';
+import {MENU_IMAGE_DIRECTORY} from './services/menuImageService.js';
 
 const app = express();
 
@@ -27,11 +29,24 @@ app.use('/api', verifyOrigin);
 app.use('/api/admin', adminAuthRoutes);
 app.use('/api/admin/orders', adminOrderRoutes);
 app.use('/api/admin/tables', adminTableRoutes);
+app.use('/api/admin/menus', adminMenuRoutes);
 app.use('/api/tables', tableRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/menus', menuRoutes);
 app.use('/api/menus', menuOptionRoutes);
 app.use('/api/orders', orderRoutes);
+
+
+app.use(
+  '/images/menus',
+  express.static(MENU_IMAGE_DIRECTORY, {
+    dotfiles: 'deny',
+    index: false,
+    setHeaders(res) {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+    },
+  }),
+);
 
 
 // 404

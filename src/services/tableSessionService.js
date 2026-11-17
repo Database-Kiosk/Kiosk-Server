@@ -1,3 +1,5 @@
+import pool from '../config/db.js';
+
 /**
  * 테이블의 활성 세션을 조회하고, 없으면 새로 생성한다.
  *
@@ -41,4 +43,24 @@ export async function getOrOpenSession(connection, table) {
   }
 
   return sessionId;
+}
+
+/**
+ * 테이블의 현재 열린 세션을 조회한다. (주문 내역 조회용, 읽기 전용)
+ *
+ * getOrOpenSession과 같은 기준(종료 시간이 없는 가장 최근 세션)을 사용하므로
+ * 주문 생성과 조회가 같은 세션을 가리킨다.
+ * 세션을 생성하거나 잠그지 않으며, 열린 세션이 없으면 null을 반환한다.
+ */
+export async function findOpenSession(tableId) {
+  const [sessions] = await pool.execute(
+    `SELECT session_id, started_at
+     FROM table_session
+     WHERE table_id = ? AND ended_at IS NULL
+     ORDER BY session_id DESC
+     LIMIT 1`,
+    [tableId],
+  );
+
+  return sessions[0] ?? null;
 }

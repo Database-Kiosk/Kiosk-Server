@@ -1,5 +1,6 @@
 import pool from '../config/db.js';
-import { getOrOpenSession } from './tableSessionService.js';
+import { findTableById } from './tableService.js';
+import { findOpenSession, getOrOpenSession } from './tableSessionService.js';
 
 // Largest value an INT column (orders.total_price etc.) can hold.
 const MAX_INT_COLUMN = 2147483647;
@@ -155,4 +156,83 @@ export async function createOrder({ tableId, items }) {
   } finally {
     connection.release();
   }
+}
+
+// Orders of one session, newest first, each with its items and options.
+// Three queries in total (orders, items, options), all filtered by session_id, so the number of
+// queries does not grow with the number of orders (no N+1) and no long IN (...) list is needed.
+// Prices are the ones saved at order time; names come from menu / menu_option (no is_active filter,
+// so menus taken off sale still show up in past orders).
+//
+// Consistency without a transaction: an order and all of its items/options are committed together
+// and never changed afterwards (only order_status can change), so every order read by the first
+// query has all of its rows visible to the later queries. Rows of orders committed after the first
+// query are skipped; they appear on the next request.
+async function findOrdersBySession(sessionId) {
+  const [orders] = await pool.execute(
+    `SELECT order_id, order_status, order_time, total_price
+     FROM orders
+     WHERE session_id = ?
+     ORDER BY order_id DESC`,
+    [sessionId],
+  );
+  if (orders.length === 0) return [];
+
+  const [details] = await pool.execute(
+    `SELECT d.order_detail_id, d.order_id, d.menu_id, m.menu_name, d.quantity, d.unit_price
+     FROM orderdetail d
+     JOIN orders o ON o.order_id = d.order_id
+     JOIN menu m ON m.menu_id = d.menu_id
+     WHERE o.session_id = ?
+     ORDER BY d.order_detail_id`,
+    [sessionId],
+  );
+
+  const [options] = await pool.execute(
+    `SELECT oo.order_detail_id, oo.option_id, mo.option_name, oo.extra_price
+     FROM orderoption oo
+     JOIN orderdetail d ON d.order_detail_id = oo.order_detail_id
+     JOIN orders o ON o.order_id = d.order_id
+     JOIN menu_option mo ON mo.option_id = oo.option_id
+     WHERE o.session_id = ?
+     ORDER BY oo.order_detail_id, oo.option_id`,
+    [sessionId],
+  );
+
+  const optionsByDetailId = new Map();
+  for (const { order_detail_id: detailId, ...option } of options) {
+    if (!optionsByDetailId.has(detailId)) optionsByDetailId.set(detailId, []);
+    optionsByDetailId.get(detailId).push(option);
+  }
+
+  const itemsByOrderId = new Map(orders.map((order) => [order.order_id, []]));
+  for (const { order_id: orderId, ...item } of details) {
+    // Missing for an order committed after the first query: skipped (see above).
+    itemsByOrderId.get(orderId)?.push({ ...item, options: optionsByDetailId.get(item.order_detail_id) ?? [] });
+  }
+
+  return orders.map((order) => ({ ...order, items: itemsByOrderId.get(order.order_id) }));
+}
+
+/**
+ * Order history of the table's current (open) session. Read only: never opens a session or locks rows.
+ * Orders of ended sessions are never returned, because only the open session is looked up.
+ * @param {number} tableId
+ * @returns {Promise<object|null>} null if the table does not exist; orders is [] without an open session
+ */
+export async function findCurrentTableOrders(tableId) {
+  const table = await findTableById(tableId);
+  if (!table) return null;
+
+  const session = await findOpenSession(tableId);
+  const orders = session ? await findOrdersBySession(session.session_id) : [];
+
+  return {
+    table_id: tableId,
+    session_id: session?.session_id ?? null,
+    started_at: session?.started_at ?? null,
+    // Sum of the totals saved with each order.
+    total_price: orders.reduce((sum, order) => sum + order.total_price, 0),
+    orders,
+  };
 }

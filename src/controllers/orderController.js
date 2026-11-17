@@ -1,4 +1,4 @@
-import { createOrder } from '../services/orderService.js';
+import { createOrder, findCurrentTableOrders } from '../services/orderService.js';
 
 const MAX_ITEMS = 50;
 const MAX_QUANTITY = 99;
@@ -67,4 +67,24 @@ export async function postOrder(req, res) {
   });
 
   res.status(201).json(order);
+}
+
+// GET /api/tables/:tableId/orders — order history of the table's current session.
+// The session is decided by the server; the client sends the table number only.
+export async function getTableOrders(req, res) {
+  const tableId = Number(req.params.tableId);
+
+  if (!isPositiveId(tableId)) {
+    res.status(400).json({ message: '올바른 테이블 번호를 입력하세요.' });
+    return;
+  }
+
+  const history = await findCurrentTableOrders(tableId);
+
+  if (!history) {
+    res.status(404).json({ message: '존재하지 않는 테이블입니다.' });
+    return;
+  }
+
+  res.json(history);
 }

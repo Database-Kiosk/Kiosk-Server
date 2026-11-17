@@ -1,7 +1,6 @@
-import { findOrders, findOrderById } from '../services/orderService.js';
+import { ORDER_STATUSES, findOrders, findOrderById, updateOrderStatus } from '../services/orderService.js';
 
-// orders.order_status ENUM values (DB/schema.sql).
-const ORDER_STATUSES = ['접수', '조리 중', '전달 완료'];
+const STATUS_ERROR_MESSAGE = `주문 상태는 ${ORDER_STATUSES.join(', ')} 중 하나로 입력하세요.`;
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 const isPositiveId = (value) => Number.isSafeInteger(value) && value > 0;
@@ -29,7 +28,7 @@ function parseOrderFilters(query) {
   }
   if (status !== undefined) {
     if (typeof status !== 'string' || !ORDER_STATUSES.includes(status)) {
-      return { error: `주문 상태는 ${ORDER_STATUSES.join(', ')} 중 하나로 입력하세요.` };
+      return { error: STATUS_ERROR_MESSAGE };
     }
     filters.status = status;
   }
@@ -71,4 +70,23 @@ export async function getAdminOrderById(req, res) {
   }
 
   res.json(order);
+}
+
+// PATCH /api/admin/orders/:orderId/status — body { order_status }. Moves the order one step forward
+// and responds with the full order (same shape as GET /api/admin/orders/:orderId).
+export async function patchAdminOrderStatus(req, res) {
+  const orderId = Number(req.params.orderId);
+  if (!isPositiveId(orderId)) {
+    res.status(400).json({ message: '올바른 주문 번호를 입력하세요.' });
+    return;
+  }
+
+  // req.body is undefined when the request has no JSON body.
+  const nextStatus = req.body?.order_status;
+  if (typeof nextStatus !== 'string' || !ORDER_STATUSES.includes(nextStatus)) {
+    res.status(400).json({ message: STATUS_ERROR_MESSAGE });
+    return;
+  }
+
+  res.json(await updateOrderStatus(orderId, nextStatus));
 }

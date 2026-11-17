@@ -2,6 +2,9 @@ import pool from '../config/db.js';
 import { findTableById } from './tableService.js';
 import { findOpenSession, getOrOpenSession } from './tableSessionService.js';
 
+// orders.order_status ENUM values (DB/schema.sql), in the order a status moves forward.
+export const ORDER_STATUSES = ['접수', '조리 중', '전달 완료'];
+
 // Largest value an INT column (orders.total_price etc.) can hold.
 const MAX_INT_COLUMN = 2147483647;
 
@@ -299,6 +302,50 @@ export async function findOrderById(orderId) {
     session: { session_id: order.session_id, started_at: session.started_at, ended_at: session.ended_at },
     items,
   };
+}
+
+/**
+ * Moves an order one step forward (접수 → 조리 중 → 전달 완료) and returns the full order.
+ * The order row is locked (FOR UPDATE) while its current status is checked, so two admins changing the
+ * same order at once run one after another: the second sees the new status and gets 409.
+ * The same status, a previous status or skipping a step is 409. Orders of ended sessions are not restricted.
+ * @param {number} orderId
+ * @param {string} nextStatus one of ORDER_STATUSES (already validated)
+ * @returns {Promise<object>} same shape as findOrderById
+ */
+export async function updateOrderStatus(orderId, nextStatus) {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [orders] = await connection.execute(
+      'SELECT order_status FROM orders WHERE order_id = ? FOR UPDATE',
+      [orderId],
+    );
+    if (orders.length === 0) {
+      throw httpError(404, '존재하지 않는 주문입니다.');
+    }
+
+    const currentIndex = ORDER_STATUSES.indexOf(orders[0].order_status);
+    if (ORDER_STATUSES.indexOf(nextStatus) !== currentIndex + 1) {
+      throw httpError(409, '변경할 수 없는 주문 상태입니다.');
+    }
+
+    await connection.execute('UPDATE orders SET order_status = ? WHERE order_id = ?', [nextStatus, orderId]);
+    await connection.commit();
+  } catch (error) {
+    try {
+      await connection.rollback();
+    } catch {
+      // Keep the original error.
+    }
+    throw error;
+  } finally {
+    connection.release();
+  }
+
+  // Orders are never deleted, so the order still exists after the commit.
+  return findOrderById(orderId);
 }
 
 /**

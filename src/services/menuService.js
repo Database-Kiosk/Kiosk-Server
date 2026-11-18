@@ -169,3 +169,108 @@ export async function findAdminMenuData() {
     })),
   };
 }
+
+const UPDATABLE_MENU_FIELDS = [
+  'menu_name',
+  'price',
+  'category_id',
+  'description',
+  'is_active',
+];
+
+function menuUpdateError(status, message) {
+  return Object.assign(new Error(message), { status });
+}
+
+export async function updateMenu(menuId, changes, options = []) {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [menus] = await connection.execute(
+      `SELECT menu_id, menu_name, price, category_id,
+              description, image_url, is_active
+       FROM menu
+       WHERE menu_id = ?
+       FOR UPDATE`,
+      [menuId],
+    );
+
+    const menu = menus[0];
+    if (!menu) {
+      throw menuUpdateError(404, '존재하지 않는 메뉴입니다.');
+    }
+
+    if (Object.hasOwn(changes, 'category_id')) {
+      const [categories] = await connection.execute(
+        `SELECT category_id
+         FROM category
+         WHERE category_id = ?
+         FOR SHARE`,
+        [changes.category_id],
+      );
+
+      if (categories.length === 0) {
+        throw menuUpdateError(404, '존재하지 않는 카테고리입니다.');
+      }
+    }
+
+    const [currentOptions] = await connection.execute(
+      `SELECT option_id, option_name, additional_price
+       FROM menu_option
+       WHERE menu_id = ?
+       ORDER BY option_id`,
+      [menuId],
+    );
+
+    const optionsById = new Map(
+      currentOptions.map((option) => [option.option_id, option]),
+    );
+
+    for (const option of options) {
+      if (!optionsById.has(option.option_id)) {
+        throw menuUpdateError(400, '해당 메뉴에 속하지 않는 옵션입니다.');
+      }
+
+      await connection.execute(
+        `UPDATE menu_option
+         SET option_name = ?, additional_price = ?
+         WHERE menu_id = ? AND option_id = ?`,
+        [option.option_name, option.additional_price, menuId, option.option_id],
+      );
+
+      optionsById.set(option.option_id, option);
+    }
+
+    const fields = UPDATABLE_MENU_FIELDS.filter(
+      (field) => Object.hasOwn(changes, field),
+    );
+
+    if (fields.length > 0) {
+      const assignments = fields.map((field) => `${field} = ?`).join(', ');
+
+      await connection.execute(
+        `UPDATE menu SET ${assignments} WHERE menu_id = ?`,
+        [...fields.map((field) => changes[field]), menuId],
+      );
+
+      for (const field of fields) {
+        menu[field] = changes[field];
+      }
+    }
+
+    await connection.commit();
+    return { ...menu, options: [...optionsById.values()] };
+  } catch (error) {
+    try {
+      await connection.rollback();
+    } catch {
+      // 최초 오류를 유지한다.
+    }
+
+    throw error;
+  } finally {
+    connection.release();
+  }
+}

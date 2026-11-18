@@ -1,22 +1,18 @@
 import pool from '../config/db.js';
 
 export async function findMenuOptions(menuId) {
-  const [menus] = await pool.execute(
-    'SELECT menu_id FROM menu WHERE menu_id = ?',
+  const [rows] = await pool.execute(
+    `SELECT o.option_id, o.option_name, o.additional_price
+     FROM menu m
+     LEFT JOIN menu_option o ON o.menu_id = m.menu_id
+     WHERE m.menu_id = ? AND m.is_active = 1
+     ORDER BY o.option_id`,
     [menuId],
   );
 
-  if (menus.length === 0) {
+  if (rows.length === 0) {
     return null;
   }
 
-  const [options] = await pool.execute(
-    `SELECT option_id, option_name, additional_price
-     FROM menu_option
-     WHERE menu_id = ?
-     ORDER BY option_id ASC`,
-    [menuId],
-  );
-
-  return options;
+  return rows.filter((option) => option.option_id !== null);
 }

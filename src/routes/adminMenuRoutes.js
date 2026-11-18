@@ -4,6 +4,8 @@ import uploadMenuImage from '../middlewares/uploadMenuImage.js';
 import {
   getAdminMenus,
   postAdminMenu,
+  patchAdminMenu,
+  patchAdminMenuStatus,
 } from '../controllers/adminMenuController.js';
 
 const router = Router();
@@ -17,5 +19,8 @@ router.post(
   uploadMenuImage,
   postAdminMenu,
 );
+
+router.patch('/:menuId/status', patchAdminMenuStatus);
+router.patch('/:menuId', patchAdminMenu);
 
 export default router;

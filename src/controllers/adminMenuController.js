@@ -9,12 +9,12 @@ import {
   removeMenuImage,
 } from '../services/menuImageService.js';
 
+import { httpError } from '../utils/httpError.js';
+
 const MAX_INT = 2147483647;
 
 function invalid(message) {
-  const error = new Error(message);
-  error.status = 400;
-  throw error;
+  throw httpError(400, message);
 }
 
 // 메뉴명과 옵션명 검증
@@ -147,9 +147,7 @@ export async function postAdminMenu(req, res) {
 
       body = JSON.parse(req.body.data);
     } catch {
-      const error = new Error('메뉴 정보 형식이 올바르지 않습니다.');
-      error.status = 400;
-      throw error;
+      invalid('메뉴 정보 형식이 올바르지 않습니다.');
     }
   } else {
     // 기존 JSON 요청도 사용할 수 있도록 유지

@@ -1,10 +1,11 @@
 
 import { findTableById } from '../services/tableService.js';
+import { isPositiveId } from '../utils/validators.js';
 
 export async function getTableById(req, res) {
   const tableId = Number(req.params.tableId);
 
-  if (!Number.isSafeInteger(tableId) || tableId <= 0) {
+  if (!isPositiveId(tableId)) {
     res.status(400).json({ message: '올바른 테이블 번호를 입력하세요.' });
     return;
   }

@@ -1,4 +1,4 @@
-import { ORDER_STATUSES } from '../services/orderService.js';
+import { ORDER_STATUSES, ORDER_STATUS_ERROR_MESSAGE } from '../services/orderService.js';
 import { PERIOD_DAYS, getSalesReport } from '../services/adminSalesService.js';
 
 const MONTH_PATTERN = /^(?:[1-9]\d{3})-(?:0[1-9]|1[0-2])$/;
@@ -19,7 +19,7 @@ export async function getAdminSales(req, res) {
 
   if (status !== undefined && !ORDER_STATUSES.includes(status)) {
     return res.status(400).json({
-      message: `주문 상태는 ${ORDER_STATUSES.join(', ')} 중 하나로 입력하세요.`,
+      message: ORDER_STATUS_ERROR_MESSAGE,
     });
   }
 

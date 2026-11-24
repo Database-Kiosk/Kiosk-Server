@@ -1,9 +1,13 @@
-import { ORDER_STATUSES, findOrders, findOrderById, updateOrderStatus } from '../services/orderService.js';
+import {
+  ORDER_STATUSES,
+  ORDER_STATUS_ERROR_MESSAGE,
+  findOrders,
+  findOrderById,
+  updateOrderStatus,
+} from '../services/orderService.js';
+import { isPositiveId } from '../utils/validators.js';
 
-const STATUS_ERROR_MESSAGE = `주문 상태는 ${ORDER_STATUSES.join(', ')} 중 하나로 입력하세요.`;
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
-
-const isPositiveId = (value) => Number.isSafeInteger(value) && value > 0;
 
 // 'YYYY-MM-DD' that is a real calendar date (rejects e.g. 2026-02-30).
 function isValidDate(value) {
@@ -28,7 +32,7 @@ function parseOrderFilters(query) {
   }
   if (status !== undefined) {
     if (typeof status !== 'string' || !ORDER_STATUSES.includes(status)) {
-      return { error: STATUS_ERROR_MESSAGE };
+      return { error: ORDER_STATUS_ERROR_MESSAGE };
     }
     filters.status = status;
   }
@@ -84,7 +88,7 @@ export async function patchAdminOrderStatus(req, res) {
   // req.body is undefined when the request has no JSON body.
   const nextStatus = req.body?.order_status;
   if (typeof nextStatus !== 'string' || !ORDER_STATUSES.includes(nextStatus)) {
-    res.status(400).json({ message: STATUS_ERROR_MESSAGE });
+    res.status(400).json({ message: ORDER_STATUS_ERROR_MESSAGE });
     return;
   }
 

@@ -159,6 +159,7 @@ CREATE TABLE `orders` (
   `session_id` int NOT NULL,
   PRIMARY KEY (`order_id`),
   KEY `fk_orders_table_session1_idx` (`session_id`),
+  KEY `idx_orders_order_time` (`order_time`),
   CONSTRAINT `fk_orders_table_session1` FOREIGN KEY (`session_id`) REFERENCES `table_session` (`session_id`),
   CONSTRAINT `chk_orders_total_price` CHECK ((`total_price` >= 0))
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

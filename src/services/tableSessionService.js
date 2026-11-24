@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { httpError } from '../utils/httpError.js';
 
 /**
  * 테이블의 활성 세션을 조회하고, 없으면 새로 생성한다.
@@ -63,12 +64,6 @@ export async function findOpenSession(tableId) {
   );
 
   return sessions[0] ?? null;
-}
-
-function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
 }
 
 /**

@@ -1,5 +1,6 @@
 import { findTablesWithSessionSummary } from '../services/tableService.js';
 import { completeTableSession } from '../services/tableSessionService.js';
+import { isPositiveId } from '../utils/validators.js';
 
 // 전체 테이블 조회
 export async function getAdminTables(req, res) {
@@ -10,7 +11,7 @@ export async function getAdminTables(req, res) {
 export async function completeAdminTable(req, res) {
   const tableId = Number(req.params.tableId);
 
-  if (!Number.isSafeInteger(tableId) || tableId <= 0) {
+  if (!isPositiveId(tableId)) {
     res.status(400).json({
       message: '올바른 테이블 번호를 입력하세요.',
     });

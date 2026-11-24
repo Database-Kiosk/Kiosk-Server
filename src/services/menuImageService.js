@@ -3,17 +3,14 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile, unlink } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { httpError } from '../utils/httpError.js';
 
 export const MENU_IMAGE_DIRECTORY = fileURLToPath(
   new URL('../../public/images/menus/', import.meta.url),
 );
 
 function invalidImage() {
-  const error = new Error(
-    '정상적인 JPG, PNG, WebP 사진을 선택해 주세요.',
-  );
-  error.status = 400;
-  return error;
+  return httpError(400, '정상적인 JPG, PNG, WebP 사진을 선택해 주세요.');
 }
 
 export async function saveMenuImage(file) {

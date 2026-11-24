@@ -1,19 +1,16 @@
 import pool from '../config/db.js';
 import { findTableById } from './tableService.js';
 import { findOpenSession, getOrOpenSession } from './tableSessionService.js';
+import { httpError } from '../utils/httpError.js';
 
 // orders.order_status ENUM values (DB/schema.sql), in the order a status moves forward.
 export const ORDER_STATUSES = ['접수', '조리 중', '전달 완료'];
 
+// 400 message for an order_status / status value that is not one of ORDER_STATUSES.
+export const ORDER_STATUS_ERROR_MESSAGE = `주문 상태는 ${ORDER_STATUSES.join(', ')} 중 하나로 입력하세요.`;
+
 // Largest value an INT column (orders.total_price etc.) can hold.
 const MAX_INT_COLUMN = 2147483647;
-
-// Error with an HTTP status. The common error handler in app.js responds with { message }.
-function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-}
 
 // "?, ?, ?" for an IN (...) list, so the values stay bound parameters.
 const placeholders = (values) => values.map(() => '?').join(', ');

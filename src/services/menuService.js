@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { httpError } from '../utils/httpError.js';
 
 // Customer menus: only menus on sale (is_active = 1), each with its options.
 // Options are loaded in one query (not per menu) and grouped by menu_id.
@@ -44,9 +45,7 @@ export async function createMenu(menu) {
     );
 
     if (categories.length === 0) {
-      const error = new Error('존재하지 않는 카테고리입니다.');
-      error.status = 404;
-      throw error;
+      throw httpError(404, '존재하지 않는 카테고리입니다.');
     }
 
     const {
@@ -178,10 +177,6 @@ const UPDATABLE_MENU_FIELDS = [
   'is_active',
 ];
 
-function menuUpdateError(status, message) {
-  return Object.assign(new Error(message), { status });
-}
-
 export async function updateMenu(menuId, changes, options = []) {
   const connection = await pool.getConnection();
 
@@ -199,7 +194,7 @@ export async function updateMenu(menuId, changes, options = []) {
 
     const menu = menus[0];
     if (!menu) {
-      throw menuUpdateError(404, '존재하지 않는 메뉴입니다.');
+      throw httpError(404, '존재하지 않는 메뉴입니다.');
     }
 
     if (Object.hasOwn(changes, 'category_id')) {
@@ -212,7 +207,7 @@ export async function updateMenu(menuId, changes, options = []) {
       );
 
       if (categories.length === 0) {
-        throw menuUpdateError(404, '존재하지 않는 카테고리입니다.');
+        throw httpError(404, '존재하지 않는 카테고리입니다.');
       }
     }
 
@@ -230,7 +225,7 @@ export async function updateMenu(menuId, changes, options = []) {
 
     for (const option of options) {
       if (!optionsById.has(option.option_id)) {
-        throw menuUpdateError(400, '해당 메뉴에 속하지 않는 옵션입니다.');
+        throw httpError(400, '해당 메뉴에 속하지 않는 옵션입니다.');
       }
 
       await connection.execute(

@@ -1,10 +1,9 @@
 import { createOrder, findCurrentTableOrders } from '../services/orderService.js';
+import { isPositiveId } from '../utils/validators.js';
 
 const MAX_ITEMS = 50;
 const MAX_QUANTITY = 99;
 const MAX_OPTIONS_PER_ITEM = 20;
-
-const isPositiveId = (value) => Number.isSafeInteger(value) && value > 0;
 
 // Returns an error message for an invalid request body, or null if the shape is valid.
 // Prices are never read from the request; the server computes them from the DB.

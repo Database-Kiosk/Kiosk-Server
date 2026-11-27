@@ -174,6 +174,7 @@ const UPDATABLE_MENU_FIELDS = [
   'price',
   'category_id',
   'description',
+  'image_url',
   'is_active',
 ];
 

@@ -208,7 +208,19 @@ function validateObject(value, message) {
 
 export async function patchAdminMenu(req, res) {
   const menuId = validateMenuId(req.params.menuId);
-  const body = req.body;
+  let body = req.body;
+
+  if (req.is('multipart/form-data')) {
+    if (typeof body?.data !== 'string') {
+      invalid('메뉴 정보 형식이 올바르지 않습니다.');
+    }
+
+    try {
+      body = JSON.parse(body.data);
+    } catch {
+      invalid('메뉴 정보 형식이 올바르지 않습니다.');
+    }
+  }
 
   validateObject(body, '요청 본문은 JSON 객체여야 합니다.');
 
@@ -263,11 +275,33 @@ export async function patchAdminMenu(req, res) {
     }
   }
 
-  if (Object.keys(changes).length === 0 && options.length === 0) {
-    invalid('수정할 메뉴 정보 또는 옵션을 입력하세요.');
+  if (Object.keys(changes).length === 0 && options.length === 0 && !req.file) {
+    invalid('수정할 메뉴 정보, 옵션 또는 사진을 입력하세요.');
   }
 
-  res.json(await updateMenu(menuId, changes, options));
+  const savedImage = await saveMenuImage(req.file);
+
+  if (savedImage) {
+    changes.image_url = savedImage.imageUrl;
+  }
+
+  let savedMenu;
+
+  try {
+    savedMenu = await updateMenu(menuId, changes, options);
+  } catch (error) {
+    if (savedImage) {
+      try {
+        await removeMenuImage(savedImage.filePath);
+      } catch (cleanupError) {
+        console.error('메뉴 이미지 삭제 실패:', cleanupError);
+      }
+    }
+
+    throw error;
+  }
+
+  res.json(savedMenu);
 }
 
 export async function patchAdminMenuStatus(req, res) {

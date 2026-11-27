@@ -21,6 +21,6 @@ router.post(
 );
 
 router.patch('/:menuId/status', patchAdminMenuStatus);
-router.patch('/:menuId', patchAdminMenu);
++router.patch('/:menuId', uploadMenuImage, patchAdminMenu);
 
 export default router;

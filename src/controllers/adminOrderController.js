@@ -56,7 +56,22 @@ export async function getAdminOrders(req, res) {
     return;
   }
 
-  res.json(await findOrders(filters));
+  const includePending = req.query.include_pending;
+
+  if (
+    includePending !== undefined &&
+    (includePending !== 'true' || !filters.date)
+  ) {
+    res.status(400).json({
+      message: 'include_pending=true를 사용하려면 조회 날짜를 입력하세요.',
+    });
+    return;
+  }
+
+  res.json(await findOrders({
+    ...filters,
+    includePending: includePending === 'true',
+  }));
 }
 
 // GET /api/admin/orders/:orderId

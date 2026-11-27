@@ -172,15 +172,28 @@ export async function createOrder({ tableId, items }) {
  * see the same rows even if an order is added or its order_status changes in between (a status
  * filter would otherwise drop the items of an order whose status changed after the first query).
  */
-async function findOrdersWhere(where, params) {
+async function findOrdersWhere(where, params, { includeDailyOrderNumber = false } = {}) {
   const whereSql = where ? `WHERE ${where}` : '';
   const connection = await pool.getConnection();
   try {
     await connection.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
     await connection.query('START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY');
 
+    const dailyOrderNumberSql = includeDailyOrderNumber
+      ? `, (
+          SELECT COUNT(*) + 1
+          FROM orders AS earlier
+          WHERE earlier.order_time >= DATE(o.order_time)
+            AND (
+              earlier.order_time < o.order_time
+              OR (earlier.order_time = o.order_time AND earlier.order_id < o.order_id)
+            )
+        ) AS daily_order_number`
+      : '';
+
     const [orders] = await connection.execute(
-      `SELECT o.order_id, o.session_id, s.table_id, o.order_status, o.order_time, o.total_price
+      `SELECT o.order_id, o.session_id, s.table_id, o.order_status,
+        o.order_time, o.total_price${dailyOrderNumberSql}
        FROM orders o
        JOIN table_session s ON s.session_id = o.session_id
        ${whereSql}
@@ -261,12 +274,24 @@ async function findOrdersBySession(sessionId) {
  * is compared as-is on the DB side: [date 00:00:00, next day 00:00:00).
  * @param {{ date?: string, status?: string, tableId?: number }} filters
  */
-export async function findOrders({ date, status, tableId } = {}) {
+export async function findOrders({ date, status, tableId, includePending = false } = {}) {
   const conditions = [];
   const params = [];
+
   if (date !== undefined) {
-    conditions.push('o.order_time >= CAST(? AS DATE) AND o.order_time < CAST(? AS DATE) + INTERVAL 1 DAY');
-    params.push(date, date);
+    const dayRange =
+      'o.order_time >= CAST(? AS DATE) AND o.order_time < CAST(? AS DATE) + INTERVAL 1 DAY';
+
+    if (includePending) {
+      conditions.push(`(
+        (${dayRange})
+        OR (o.order_time < CAST(? AS DATE) AND o.order_status IN ('접수', '조리 중'))
+      )`);
+      params.push(date, date, date);
+    } else {
+      conditions.push(`(${dayRange})`);
+      params.push(date, date);
+    }
   }
   if (status !== undefined) {
     conditions.push('o.order_status = ?');
@@ -276,7 +301,9 @@ export async function findOrders({ date, status, tableId } = {}) {
     conditions.push('s.table_id = ?');
     params.push(tableId);
   }
-  return findOrdersWhere(conditions.join(' AND '), params);
+  return findOrdersWhere(conditions.join(' AND '), params, {
+    includeDailyOrderNumber: includePending,
+  });
 }
 
 /**
@@ -293,6 +320,7 @@ export async function findOrderById(orderId) {
     'SELECT started_at, ended_at FROM table_session WHERE session_id = ?',
     [order.session_id],
   );
+  
   const { items, ...base } = order;
   return {
     ...base,
